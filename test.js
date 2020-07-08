@@ -14,9 +14,13 @@ Promise.all(promises).then((objs) => {
 		background = objs[1],
 		wall = objs[2];
 
-	puzzled.regesterObjectAlias("@", player);
-	puzzled.regesterObjectAlias(" ", background);
-	puzzled.regesterObjectAlias("#", wall);
+	puzzled.regester.objectAlias("@", player);
+	puzzled.regester.objectAlias(" ", background);
+	puzzled.regester.objectAlias("#", wall);
+
+	puzzled.regester.layer(0, background);
+	let playerLayer = puzzled.regester.layer(1);
+	playerLayer.add(player, wall);
 
 	puzzled.load.map("./assets/lvl1.map").then((map) => {
 		map.render(ctx);

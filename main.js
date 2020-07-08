@@ -28,6 +28,12 @@ class PuzzledObject {
 		Object.freeze(this.attributes);
 	}
 
+	/**
+	 * Render the object using provided data.
+	 * @param {RenderingContext} ctx The rendering context on which to draw the sprite.
+	 * @param {number} spriteX The grid X at which to draw.
+	 * @param {number} spriteY The grid Y at which to draw.
+	 */
 	render(ctx, spriteX, spriteY) {
 		if (this.attributes.colorset != null) {
 			this.#imageData.forEach((row, y) => {
@@ -50,13 +56,37 @@ class PuzzledObjectInstance {
 	mapX;
 	mapY;
 	#parentObject;
+	#layer;
 
+	/**
+	 * @type {number}
+	 */
+	get layer() {
+		return this.#layer;
+	}
+
+	/**
+	 * Used internally to repersent the objects on the grid.
+	 * @param {PuzzledObject} obj The object which to instanate.
+	 * @param {number} x The grid X at which thw instance is currenty positioned.
+	 * @param {number} y The grid X at which thw instance is currenty positioned.
+	 */
 	constructor(obj, x, y) {
 		this.mapX = x;
 		this.mapY = y;
 		this.#parentObject = obj;
+
+		layers.forEach((layer) => {
+			if (layer.objects.includes(this.#parentObject)) {
+				this.#layer = layer;
+			}
+		});
 	}
 
+	/**
+	 * Render the instance's parent object at its location.
+	 * @param {RenderingContext} ctx The rendering context on which to draw.
+	 */
 	render(ctx) {
 		this.#parentObject.render(ctx, this.mapX, this.mapY);
 	}
@@ -66,6 +96,10 @@ class PuzzledMap {
 	#charGrid = [];
 	#objects = [];
 
+	/**
+	 * A grid repersenting the level.
+	 * @param {string} data Data from the imported file.
+	 */
 	constructor(data) {
 		let lines = data.split("\n");
 
@@ -81,6 +115,10 @@ class PuzzledMap {
 		});
 	}
 
+	/**
+	 * Render all objects on the map.
+	 * @param {RenderingContext} ctx The rendering context on which to draw the map.
+	 */
 	render(ctx) {
 		this.#objects.forEach((obj) => {
 			obj.render(ctx);
@@ -101,16 +139,49 @@ class PuzzledMap {
 	}
 }
 
-let aliases = {};
+class PuzzledLayer {
+	#objs = [];
+	#i;
 
+	get objects() {
+		return this.#objs;
+	}
+
+	get index() {
+		return this.#i;
+	}
+
+	constructor(index) {
+		this.#i = index;
+	}
+
+	add(...objs) {
+		this.#objs.push(...objs);
+	}
+}
+
+let aliases = {};
+let layers = [];
+
+/**
+ * Puzzled interface
+ */
 const puzzled = {
 	load: {
+		/**
+		 * Load in a object from a file.
+		 * @param {string} file Path to .obj file.
+		 */
 		async object(file) {
 			let data = await fetch(file).then((responce) => responce.text());
 			let object = new PuzzledObject(data);
 			return object;
 		},
 
+		/**
+		 * Load in a map from a file.
+		 * @param {string} file Path to .map file
+		 */
 		async map(file) {
 			let data = await fetch(file).then((responce) => responce.text());
 			let object = new PuzzledMap(data);
@@ -118,8 +189,27 @@ const puzzled = {
 		}
 	},
 
-	regesterObjectAlias(char, obj) {
-		aliases[char] = obj;
+	regester: {
+		/**
+		 * Regester an object alias.
+		 * @param {string} alias The alias name to create
+		 * @param {PuzzledObject} obj The object to give the alias.
+		 */
+		objectAlias(alias, obj) {
+			aliases[alias] = obj;
+		},
+
+		/**
+		 * Regester a layer.
+		 * @param {number} index The render index for the layer.
+		 * @param  {...PuzzledObject} objs The objects to add to the created layer
+		 */
+		layer(index, ...objs) {
+			let layer = new PuzzledLayer(index);
+			if (objs != undefined) layer.add(...objs);
+			layers.push(layer);
+			return layer;
+		}
 	}
 };
 
