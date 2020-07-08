@@ -1,4 +1,4 @@
-class PObject {
+class PuzzledObject {
 	#imageData = [];
 	attributes = {
 		is: null,
@@ -7,7 +7,7 @@ class PObject {
 	};
 
 	/**
-	 * A Puzzled object.
+	 * A Puzzleduzzled object.
 	 * @param {string} data
 	 */
 	constructor(data) {
@@ -46,8 +46,25 @@ class PObject {
 	}
 }
 
-class PMap {
+class PuzzledObjectInstance {
+	mapX;
+	mapY;
+	#parentObject;
+
+	constructor(obj, x, y) {
+		this.mapX = x;
+		this.mapY = y;
+		this.#parentObject = obj;
+	}
+
+	render(ctx) {
+		this.#parentObject.render(ctx, this.mapX, this.mapY);
+	}
+}
+
+class PuzzledMap {
 	#charGrid = [];
+	#objects = [];
 
 	constructor(data) {
 		let lines = data.split("\n");
@@ -55,46 +72,54 @@ class PMap {
 		lines.forEach((line) => {
 			this.#charGrid.push(line.split(""));
 		});
+
+		this.#charGrid.forEach((row, y) => {
+			row.forEach((char, x) => {
+				let obj = new PuzzledObjectInstance(aliases[char], x, y);
+				this.#objects.push(obj);
+			});
+		});
 	}
 
 	render(ctx) {
-		this.grid.forEach((row, y) => {
-			row.forEach((tileID, x) => {
-				let tile = tiles[tileID];
-				if (tile == undefined) {
-					throw new Error(`Unkown tile '${tileID}'.`);
-				}
+		this.#objects.forEach((obj) => {
+			obj.render(ctx);
+			// row.forEach((tileID, x) => {
+			// 	let tile = aliases[tileID];
+			// 	if (tile == undefined) {
+			// 		throw new Error(`Unkown tile '${tileID}'.`);
+			// 	}
 
-				if (tile.attributes.is != "background") {
-					Object.values(tiles)
-						.filter((object) => object.attributes.is == "background")[0]
-						?.render(ctx, x, y);
-				}
-				tile.render(ctx, x, y);
-			});
+			// 	if (tile.attributes.is != "background") {
+			// 		Object.values(aliases)
+			// 			.filter((object) => object.attributes.is == "background")[0]
+			// 			?.render(ctx, x, y);
+			// 	}
+
+			// });
 		});
 	}
 }
 
-let tiles = {};
+let aliases = {};
 
 const puzzled = {
 	load: {
 		async object(file) {
 			let data = await fetch(file).then((responce) => responce.text());
-			let object = new PObject(data);
+			let object = new PuzzledObject(data);
 			return object;
 		},
 
 		async map(file) {
 			let data = await fetch(file).then((responce) => responce.text());
-			let object = new PMap(data);
+			let object = new PuzzledMap(data);
 			return object;
 		}
 	},
 
 	regesterObjectAlias(char, obj) {
-		tiles[char] = obj;
+		aliases[char] = obj;
 	}
 };
 
