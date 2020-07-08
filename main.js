@@ -57,12 +57,17 @@ class PuzzledObjectInstance {
 	mapY;
 	#parentObject;
 	#layer;
+	map;
 
 	/**
-	 * @type {number}
+	 * @property {number} layer
 	 */
 	get layer() {
 		return this.#layer;
+	}
+
+	get parentObject() {
+		return this.#parentObject;
 	}
 
 	/**
@@ -81,6 +86,24 @@ class PuzzledObjectInstance {
 				this.#layer = layer;
 			}
 		});
+
+		if (this.#parentObject.attributes.is == "player") {
+			window.onkeydown = (e) => {
+				if (e.key == "ArrowRight") {
+					this.mapX += 1;
+					this.map.render();
+				} else if (e.key == "ArrowLeft") {
+					this.mapX -= 1;
+					this.map.render();
+				} else if (e.key == "ArrowUp") {
+					this.mapY -= 1;
+					this.map.render();
+				} else if (e.key == "ArrowDown") {
+					this.mapY += 1;
+					this.map.render();
+				}
+			};
+		}
 	}
 
 	/**
@@ -95,6 +118,10 @@ class PuzzledObjectInstance {
 class PuzzledMap {
 	#charGrid = [];
 	#objects = [];
+	/**
+	 * @type {RenderingContext} ctx
+	 */
+	ctx;
 
 	/**
 	 * A grid repersenting the level.
@@ -110,6 +137,7 @@ class PuzzledMap {
 		this.#charGrid.forEach((row, y) => {
 			row.forEach((char, x) => {
 				let obj = new PuzzledObjectInstance(aliases[char], x, y);
+				obj.map = this;
 				this.#objects.push(obj);
 			});
 		});
@@ -117,25 +145,27 @@ class PuzzledMap {
 
 	/**
 	 * Render all objects on the map.
-	 * @param {RenderingContext} ctx The rendering context on which to draw the map.
 	 */
-	render(ctx) {
-		this.#objects.forEach((obj) => {
-			obj.render(ctx);
-			// row.forEach((tileID, x) => {
-			// 	let tile = aliases[tileID];
-			// 	if (tile == undefined) {
-			// 		throw new Error(`Unkown tile '${tileID}'.`);
-			// 	}
+	render() {
+		this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+		this.#objects
+			.sort((a, b) => a.layer.index - b.layer.index)
+			.forEach((obj) => {
+				obj.render(this.ctx);
+				// row.forEach((tileID, x) => {
+				// 	let tile = aliases[tileID];
+				// 	if (tile == undefined) {
+				// 		throw new Error(`Unkown tile '${tileID}'.`);
+				// 	}
 
-			// 	if (tile.attributes.is != "background") {
-			// 		Object.values(aliases)
-			// 			.filter((object) => object.attributes.is == "background")[0]
-			// 			?.render(ctx, x, y);
-			// 	}
+				// 	if (tile.attributes.is != "background") {
+				// 		Object.values(aliases)
+				// 			.filter((object) => object.attributes.is == "background")[0]
+				// 			?.render(ctx, x, y);
+				// 	}
 
-			// });
-		});
+				// });
+			});
 	}
 }
 

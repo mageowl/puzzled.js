@@ -23,6 +23,7 @@ Promise.all(promises).then((objs) => {
 	playerLayer.add(player, wall);
 
 	puzzled.load.map("./assets/lvl1.map").then((map) => {
+		map.ctx = ctx;
 		map.render(ctx);
 	});
 });
