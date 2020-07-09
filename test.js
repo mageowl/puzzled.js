@@ -2,7 +2,7 @@ import puzzled from "./main.js";
 
 let canvas = document.getElementById("game");
 let ctx = canvas.getContext("2d");
-puzzled.game.setCanvas(ctx);
+puzzled.setCanvas(ctx);
 
 let promises = [
 	puzzled.load.object("./assets/player.obj"),
@@ -30,10 +30,10 @@ Promise.all(promises).then((objs) => {
 		map.render();
 
 		// Rules
+		console.log(crate.toString());
 		puzzled.regester
 			.rule(`> ${player} | ${crate}`)
 			.append((playerObj, crateObj) => {
-				crateObj.clearMovement();
 				crateObj.move(...playerObj.movement);
 			});
 	});

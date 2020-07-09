@@ -1,3 +1,11 @@
+function getID(cell) {
+	return "[" + cell.split("[")[1].split("]")[0] + "]";
+}
+
+Array.equal = (arr1, arr2) => {
+	return arr1[0] == arr2[0] && arr1[1] == arr2[1];
+};
+
 class PuzzledObject {
 	#imageData = [];
 	attributes = {
@@ -5,6 +13,7 @@ class PuzzledObject {
 		colorset: null,
 		fill: null
 	};
+	#id;
 
 	/**
 	 * A Puzzleduzzled object.
@@ -26,6 +35,9 @@ class PuzzledObject {
 		});
 
 		Object.freeze(this.attributes);
+
+		this.#id = nextObjectID;
+		nextObjectID += 1;
 	}
 
 	/**
@@ -49,6 +61,10 @@ class PuzzledObject {
 			ctx.fillStyle = this.attributes.fill;
 			ctx.fillRect(spriteX * 25, spriteY * 25, 25, 25);
 		}
+	}
+
+	toString() {
+		return "[" + this.#id + "]";
 	}
 }
 
@@ -76,6 +92,10 @@ class PuzzledObjectInstance {
 
 	get movement() {
 		return this.#movement;
+	}
+
+	get identifier() {
+		return this.parentObject.toString();
 	}
 
 	/**
@@ -108,16 +128,21 @@ class PuzzledObjectInstance {
 		this.#movement[0]--;
 	}
 
-	right(v = 1) {
-		this.#movement[0] += v;
+	right() {
+		this.#movement[0] += 1;
 	}
 
 	up() {
 		this.#movement[1]--;
 	}
 
-	down(v = 1) {
-		this.#movement[1] += v;
+	down() {
+		this.#movement[1] += 1;
+	}
+
+	move(x, y) {
+		this.#movement[0] += x;
+		this.#movement[1] += y;
 	}
 
 	clearMovement() {
@@ -198,10 +223,60 @@ class PuzzledMap {
 		}
 
 		// Apply rules
+		const checkCell = function (obj, dir, cells, returnValue = []) {
+			let nxtObj = this.getAt(obj.mapX + dir[0], obj.mapY + dir[1]).filter(
+				(target) => target.identifier == getID(cells[0])
+			);
+
+			if (cells.length > 1 && nxtObj.length != 0)
+				return checkCell(nxtObj[0], cells.slice(1), [
+					...returnValue,
+					nxtObj[0]
+				]);
+			else if (nxtObj.length == 0) return false;
+			else return [...returnValue, nxtObj[0]];
+		}.bind(this);
+
 		rules
 			.filter((rule) => !rule.late)
 			.forEach((rule) => {
-				// Figure out which rules to apply...
+				let cells = rule.trigger.split("|").map((v) => v.trim());
+				this.#objects
+					.filter((obj) => obj.identifier == getID(cells[0]))
+					.forEach((obj) => {
+						let test;
+						if (cells[0][0] != ">" || Array.equal(obj.movement, [0, 1])) {
+							test = checkCell(obj, [0, 1], cells.slice(1));
+							if (test != false) {
+								rule.apply(obj, ...test);
+								return;
+							}
+						}
+
+						if (cells[0][0] != ">" || Array.equal(obj.movement, [1, 0])) {
+							test = checkCell(obj, [1, 0], cells.slice(1));
+							if (test != false) {
+								rule.apply(obj, ...test);
+								return;
+							}
+						}
+
+						if (cells[0][0] != ">" || Array.equal(obj.movement, [0, -1])) {
+							test = checkCell(obj, [0, -1], cells.slice(1));
+							if (test != false) {
+								rule.apply(obj, ...test);
+								return;
+							}
+						}
+
+						if (cells[0][0] != ">" || Array.equal(obj.movement, [-1, 0])) {
+							test = checkCell(obj, [-1, 0], cells.slice(1));
+							if (test != false) {
+								rule.apply(obj, ...test);
+								return;
+							}
+						}
+					});
 			});
 
 		// Move objects
@@ -213,10 +288,7 @@ class PuzzledMap {
 				];
 				if (
 					this.getAt(...newPos).filter(
-						(obj) =>
-							obj.layer.index == object.layer.index &&
-							obj.movement[0] == 0 &&
-							obj.movement[1] == 0
+						(obj) => obj.layer.index == object.layer.index
 					).length == 0
 				) {
 					object.mapX += object.movement[0];
@@ -260,6 +332,10 @@ class PuzzledLayer {
 
 class PuzzledRule {
 	#trigger;
+
+	/**
+	 * @type {string}
+	 */
 	get trigger() {
 		return this.#trigger;
 	}
@@ -288,7 +364,11 @@ let aliases = {};
 let layers = [];
 let activeMap = null;
 let ctx;
+/**
+ * @type {PuzzledRule[]}
+ */
 let rules = [];
+let nextObjectID = 0;
 
 const puzzled = {
 	load: {
