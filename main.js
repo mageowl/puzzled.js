@@ -58,6 +58,7 @@ class PuzzledObjectInstance {
 	#parentObject;
 	#layer;
 	map;
+	#movement = [0, 0];
 
 	/**
 	 * @property {number} layer
@@ -66,8 +67,15 @@ class PuzzledObjectInstance {
 		return this.#layer;
 	}
 
+	/**
+	 * @property {PuzzledObject} parentObject
+	 */
 	get parentObject() {
 		return this.#parentObject;
+	}
+
+	get movement() {
+		return this.#movement;
 	}
 
 	/**
@@ -86,24 +94,6 @@ class PuzzledObjectInstance {
 				this.#layer = layer;
 			}
 		});
-
-		if (this.#parentObject.attributes.is == "player") {
-			window.onkeydown = (e) => {
-				if (e.key == "ArrowRight") {
-					this.mapX += 1;
-					this.map.render();
-				} else if (e.key == "ArrowLeft") {
-					this.mapX -= 1;
-					this.map.render();
-				} else if (e.key == "ArrowUp") {
-					this.mapY -= 1;
-					this.map.render();
-				} else if (e.key == "ArrowDown") {
-					this.mapY += 1;
-					this.map.render();
-				}
-			};
-		}
 	}
 
 	/**
@@ -113,15 +103,31 @@ class PuzzledObjectInstance {
 	render(ctx) {
 		this.#parentObject.render(ctx, this.mapX, this.mapY);
 	}
+
+	left() {
+		this.#movement[0]--;
+	}
+
+	right(v = 1) {
+		this.#movement[0] += v;
+	}
+
+	up() {
+		this.#movement[1]--;
+	}
+
+	down(v = 1) {
+		this.#movement[1] += v;
+	}
+
+	clearMovement() {
+		this.#movement = [0, 0];
+	}
 }
 
 class PuzzledMap {
 	#charGrid = [];
 	#objects = [];
-	/**
-	 * @type {RenderingContext} ctx
-	 */
-	ctx;
 
 	/**
 	 * A grid repersenting the level.
@@ -147,25 +153,87 @@ class PuzzledMap {
 	 * Render all objects on the map.
 	 */
 	render() {
-		this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+		ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 		this.#objects
 			.sort((a, b) => a.layer.index - b.layer.index)
 			.forEach((obj) => {
-				obj.render(this.ctx);
-				// row.forEach((tileID, x) => {
-				// 	let tile = aliases[tileID];
-				// 	if (tile == undefined) {
-				// 		throw new Error(`Unkown tile '${tileID}'.`);
-				// 	}
-
-				// 	if (tile.attributes.is != "background") {
-				// 		Object.values(aliases)
-				// 			.filter((object) => object.attributes.is == "background")[0]
-				// 			?.render(ctx, x, y);
-				// 	}
-
-				// });
+				obj.render(ctx);
 			});
+	}
+
+	setActive() {
+		activeMap = this;
+	}
+
+	getAt(x, y) {
+		return this.#objects.filter((obj) => {
+			return obj.mapX == x && obj.mapY == y;
+		});
+	}
+
+	update() {
+		// Mark the player as moving
+		if (keyPresses.ArrowRight == true) {
+			this.#objects.forEach((obj) => {
+				if (obj.parentObject.attributes.is == "player") obj.right();
+			});
+		}
+
+		if (keyPresses.ArrowLeft == true) {
+			this.#objects.forEach((obj) => {
+				if (obj.parentObject.attributes.is == "player") obj.left();
+			});
+		}
+
+		if (keyPresses.ArrowUp == true) {
+			this.#objects.forEach((obj) => {
+				if (obj.parentObject.attributes.is == "player") obj.up();
+			});
+		}
+
+		if (keyPresses.ArrowDown == true) {
+			this.#objects.forEach((obj) => {
+				if (obj.parentObject.attributes.is == "player") obj.down();
+			});
+		}
+
+		// Apply rules
+		rules
+			.filter((rule) => !rule.late)
+			.forEach((rule) => {
+				// Figure out which rules to apply...
+			});
+
+		// Move objects
+		this.#objects.forEach((object) => {
+			if (object.movement != [0, 0]) {
+				let newPos = [
+					object.mapX + object.movement[0],
+					object.mapY + object.movement[1]
+				];
+				if (
+					this.getAt(...newPos).filter(
+						(obj) =>
+							obj.layer.index == object.layer.index &&
+							obj.movement[0] == 0 &&
+							obj.movement[1] == 0
+					).length == 0
+				) {
+					object.mapX += object.movement[0];
+					object.mapY += object.movement[1];
+				}
+
+				object.clearMovement();
+			}
+		});
+
+		// Apply late rules
+		rules
+			.filter((rule) => rule.late)
+			.forEach((rule) => rule.func(this.#objects));
+
+		// Render
+		this.render();
 	}
 }
 
@@ -190,17 +258,44 @@ class PuzzledLayer {
 	}
 }
 
+class PuzzledRule {
+	#trigger;
+	get trigger() {
+		return this.#trigger;
+	}
+
+	#callbacks = [];
+
+	late;
+
+	constructor(trigger, late = false) {
+		this.#trigger = trigger;
+		this.late = late;
+	}
+
+	append(func) {
+		this.#callbacks.push(func);
+	}
+
+	apply(...objs) {
+		this.#callbacks.forEach((callback) => {
+			callback(...objs);
+		});
+	}
+}
+
 let aliases = {};
 let layers = [];
+let activeMap = null;
+let ctx;
+let rules = [];
 
-/**
- * Puzzled interface
- */
 const puzzled = {
 	load: {
 		/**
 		 * Load in a object from a file.
 		 * @param {string} file Path to .obj file.
+		 * @returns {Promise<PuzzledObject>}
 		 */
 		async object(file) {
 			let data = await fetch(file).then((responce) => responce.text());
@@ -210,7 +305,8 @@ const puzzled = {
 
 		/**
 		 * Load in a map from a file.
-		 * @param {string} file Path to .map file
+		 * @param {string} file Path to .map file.
+		 * @returns {Promise<PuzzledMap>}
 		 */
 		async map(file) {
 			let data = await fetch(file).then((responce) => responce.text());
@@ -233,14 +329,55 @@ const puzzled = {
 		 * Regester a layer.
 		 * @param {number} index The render index for the layer.
 		 * @param  {...PuzzledObject} objs The objects to add to the created layer
+		 * @returns {PuzzledLayer}
 		 */
 		layer(index, ...objs) {
 			let layer = new PuzzledLayer(index);
 			if (objs != undefined) layer.add(...objs);
 			layers.push(layer);
 			return layer;
+		},
+
+		rule(trigger) {
+			let rule = new PuzzledRule(trigger);
+			rules.push(rule);
+			return rule;
 		}
+	},
+
+	game: {
+		get activeMap() {
+			return activeMap;
+		}
+	},
+
+	get ctx() {
+		return ctx;
+	},
+
+	setCanvas(newCtx) {
+		ctx = newCtx;
 	}
 };
 
 export default puzzled;
+
+let keyPresses = {
+	ArrowRight: false,
+	ArrowLeft: false,
+	ArrowUp: false,
+	ArrowDown: false,
+	x: false
+};
+window.onkeydown = (e) => {
+	if (Object.keys(keyPresses).includes(e.key)) {
+		keyPresses[e.key] = true;
+		activeMap.update();
+	}
+};
+
+window.onkeyup = (e) => {
+	if (Object.keys(keyPresses).includes(e.key)) {
+		keyPresses[e.key] = false;
+	}
+};
