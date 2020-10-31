@@ -1,40 +1,35 @@
-import puzzled from "./main.js";
+import puzzled from "./src/main.js";
 
 let canvas = document.getElementById("game");
 let ctx = canvas.getContext("2d");
 puzzled.setCanvas(ctx);
 
-let promises = [
-	puzzled.load.object("./assets/player.obj"),
-	puzzled.load.object("./assets/background.obj"),
-	puzzled.load.object("./assets/wall.obj"),
-	puzzled.load.object("./assets/crate.obj")
-];
+puzzled.load.object("./assets/player.obj", "player");
+puzzled.load.object("./assets/background.obj", "background");
+puzzled.load.object("./assets/wall.obj", "wall");
+puzzled.load.object("./assets/pumpkin.obj", "pumpkin");
+puzzled.load.map("./assets/lvl1.map", "map");
 
-Promise.all(promises).then((objs) => {
-	let player = objs[0],
-		background = objs[1],
-		wall = objs[2],
-		crate = objs[3];
+puzzled.event.on("loaded", (obj) => {
+	puzzled.regester.objectAlias("@", obj.player);
+	puzzled.regester.objectAlias(" ", obj.background);
+	puzzled.regester.objectAlias("#", obj.wall);
+	puzzled.regester.objectAlias("*", obj.pumpkin);
 
-	puzzled.regester.objectAlias("@", player);
-	puzzled.regester.objectAlias(" ", background);
-	puzzled.regester.objectAlias("#", wall);
-	puzzled.regester.objectAlias("*", crate);
+	puzzled.regester.background(obj.background);
+	puzzled.regester.layer(1, obj.player, obj.wall, obj.pumpkin);
 
-	puzzled.regester.layer(0, background);
-	puzzled.regester.layer(1, player, wall, crate);
+	obj.map.setActive();
+	obj.map.render();
 
-	puzzled.load.map("./assets/lvl1.map").then((map) => {
-		map.setActive();
-		map.render();
-
-		// Rules
-		console.log(crate.toString());
-		puzzled.regester
-			.rule(`> ${player} | ${crate}`)
-			.append((playerObj, crateObj) => {
-				crateObj.move(...playerObj.movement);
-			});
-	});
+	puzzled.regester.rule(
+		{
+			type: obj.player,
+			isMoving: true,
+			target: { type: obj.pumpkin }
+		},
+		(player, pumpkin) => {
+			pumpkin.move(player.movement);
+		}
+	);
 });

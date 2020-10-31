@@ -1,8 +1,8 @@
 @is player
-@colorset transparent black #d4a881 blue
+@colorset transparent #d4a881 #743f39 #b86f50 #3f2832
 
-01110
-02220
-13231
-03330
-03030
+00100
+02320
+22222
+12221
+04040
