@@ -2,44 +2,10 @@ import { PuzzledObject, aliases } from "./objects.js";
 import { PuzzledMap, activeMap, setCTX } from "./map.js";
 import { PuzzledDispatcher } from "./event.js";
 import { PuzzledLayer, backgroundLayer } from "./layers.js";
-
-class PuzzledRule {
-	#trigger;
-
-	/**
-	 * @type {string}
-	 */
-	get trigger() {
-		return this.#trigger;
-	}
-
-	#callbacks = [];
-
-	late;
-
-	constructor(trigger, late = false) {
-		this.#trigger = trigger;
-		this.late = late;
-	}
-
-	append(func) {
-		this.#callbacks.push(func);
-		return this;
-	}
-
-	apply(...objs) {
-		this.#callbacks.forEach((callback) => {
-			callback(...objs);
-		});
-	}
-}
+import { PuzzledRule, rules } from "./rules.js";
 
 let promises = {};
 let globalDispatcher = new PuzzledDispatcher();
-/**
- * @type {PuzzledRule[]}
- */
-let rules = [];
 
 const puzzled = {
 	load: {
@@ -114,8 +80,8 @@ const puzzled = {
 		 * @param {string} trigger
 		 * @return {PuzzledRule}
 		 */
-		rule(critera, callback) {
-			let rule = new PuzzledRule(critera, callback);
+		rule(critera, callback, late) {
+			let rule = new PuzzledRule(critera, callback, late);
 			rules.push(rule);
 			return rule;
 		}
@@ -135,6 +101,11 @@ const puzzled = {
 		return ctx;
 	},
 
+	/**
+	 * Set canvas for puzzled
+	 *
+	 * @param {CanvasRenderingContext2D} newCtx New rendering context to use.
+	 */
 	setCanvas(newCtx) {
 		setCTX(newCtx);
 	}

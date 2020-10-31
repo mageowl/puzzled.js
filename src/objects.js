@@ -171,24 +171,31 @@ export class PuzzledObjectInstance {
 						break;
 
 					case "isMoving":
-						if (
-							(this.movement == [0, 0] && value) ||
-							(this.movement != [0, 0] && !value)
-						)
+						// console.log(
+						// 	this.#movement,
+						// 	(this.#movement.join(", ") != [0, 0].join(", ")) != value,
+						// 	value
+						// );
+						if ((this.#movement.join(", ") != [0, 0].join(", ")) != value)
 							return false;
+						break;
 
 					case "target":
 						const targetMatches = this.target?.match?.(value);
+						console.log(value, targetMatches, this.target);
 
 						if (Array.isArray(targetMatches)) objs.push(...targetMatches);
 						else return false;
+						break;
 
 					default:
 						break;
 				}
+
+				console.log(check, value);
 			}
 		}
 
-		return true;
+		return objs;
 	}
 }

@@ -29,7 +29,7 @@ puzzled.event.on("loaded", (obj) => {
 			target: { type: obj.pumpkin }
 		},
 		(player, pumpkin) => {
-			pumpkin.move(player.movement);
+			pumpkin.move(...player.movement);
 		}
 	);
 });

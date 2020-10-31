@@ -1,5 +1,6 @@
 import { PuzzledObjectInstance, aliases } from "./objects.js";
 import { backgroundLayer } from "./layers.js";
+import { rules } from "./rules.js";
 
 export let activeMap = null;
 export let ctx;
@@ -63,7 +64,7 @@ export class PuzzledMap {
 	getAt(x, y, layer) {
 		return this.#objects.filter((obj) => {
 			return obj.mapX == x && obj.mapY == y && obj.layer.index == layer;
-		});
+		})[0];
 	}
 
 	update(keypress) {
@@ -95,42 +96,38 @@ export class PuzzledMap {
 		}
 
 		// Apply rules
-		// const checkCell = function (obj, dir, cells, returnValue = []) {
-		// 	if (cells.length == 0) return returnValue;
-		// 	let nxtObj = this.getAt(obj.mapX + dir[0], obj.mapY + dir[1]).filter(
-		// 		(target) => target.identifier == getID(cells[0])
-		// 	);
+		this.#objects.forEach((obj) => {
+			for (const rule of rules) {
+				if (rule.late) continue;
 
-		// 	if (cells.length > 1 && nxtObj.length != 0)
-		// 		return checkCell(nxtObj[0], cells.slice(1), [
-		// 			...returnValue,
-		// 			nxtObj[0]
-		// 		]);
-		// 	else if (nxtObj.length == 0) return false;
-		// 	else return [...returnValue, nxtObj[0]];
-		// }.bind(this);
-
-		// rules.filter((rule) => !rule.late).forEach((rule) => {});
+				const match = obj.match(rule.critera);
+				if (match) {
+					rule.fire(...match);
+				}
+			}
+		});
 
 		// Move objects
-		this.#objects.forEach((object) => {
+		const moveObj = (object) => {
 			if (object.movement != [0, 0]) {
 				let newPos = [
 					object.mapX + object.movement[0],
 					object.mapY + object.movement[1]
 				];
-				if (
-					this.getAt(...newPos).filter(
-						(obj) => obj.layer.index == object.layer.index
-					).length == 0
-				) {
+
+				if (!object.target) {
 					object.mapX += object.movement[0];
 					object.mapY += object.movement[1];
+				} else if (object.target.match({ isMoving: true })) {
+					moveObj(object.target);
+					moveObj(object);
 				}
-
-				object.clearMovement();
 			}
-		});
+
+			object.clearMovement();
+		};
+
+		this.#objects.forEach(moveObj);
 
 		// Apply late rules
 		// rules
